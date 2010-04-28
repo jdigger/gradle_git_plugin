@@ -15,11 +15,11 @@
  */
 package com.mooregreatsoftware.gradle.gitplugin
 
-import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.internal.ConventionTask
 import org.gradle.api.tasks.TaskAction
 
-abstract class GitTask extends DefaultTask {
+abstract class GitTask extends ConventionTask {
     @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
     GitState gitState
 
@@ -113,21 +113,43 @@ class GitRemoveBranchTask extends AbstractGitTask {
 }
 
 
-class GitChangeTrackedBrachTask extends GitTask {
+class GitChangeTrackedBranchTask extends GitTask {
     String remoteMachine = 'origin'
     String branch
     String trackedBranch
 
 
-    GitChangeTrackedBrachTask() {
+    GitChangeTrackedBranchTask() {
         doFirst {
             if (!branch) throw new GradleException('Need a branch')
             if (!trackedBranch) throw new GradleException('Need a trackedBranch')
 
-            def remoteName = cmdOutput("git config branch.${branch}.remote")
+            def remoteName = cmdOutput("git config --get branch.${branch}.remote")
             if (!remoteName) runCmd("git config branch.${branch}.remote ${remoteMachine}")
             if (trackedBranch != "${remoteMachine}/${branch}") runCmd("git config branch.${branch}.merge refs/heads/${trackedBranch}")
             else logger.info("Already on ${trackedBranch}")
+        }
+    }
+
+}
+
+
+class GitCheckoutTask extends GitTask {
+    String branch
+    String trackedBranch
+    String branchPrefix  // used for GitConvention mapping
+
+
+    GitCheckoutTask() {
+        doFirst {
+            if (!branch) throw new GradleException('Need a branch name')
+
+            if (trackedBranch) {
+                runCmd("git checkout -b ${branch} ${trackedBranch}")
+            }
+            else {
+                runCmd("git checkout ${branch}")
+            }
         }
     }
 

@@ -15,6 +15,7 @@
  */
 package com.mooregreatsoftware.gradle.gitplugin
 
+import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskContainer
@@ -74,21 +75,16 @@ class GitPluginTests {
 
         assertThat tasks.findByName('update'), nullValue(Task)
 
-        task = tasks.getByName('push-private')
-        assertThat task, instanceOf(GitPushTask)
-        assertThat task.localBranch, equalTo('test_branch')
-        assertThat task.remoteBranch, equalTo('work/tuser/test_branch')
-        assertThat task.force, equalTo(true)
-        assertThat task, dependsOn()
-
+        assertThat tasks.findByName('push-private'), nullValue(Task)
         assertThat tasks.findByName('-push-work'), nullValue(Task)
         assertThat tasks.findByName('-push-review'), nullValue(Task)
         assertThat tasks.findByName('-push-integration'), nullValue(Task)
         assertThat tasks.findByName('track-work'), nullValue(Task)
         assertThat tasks.findByName('track-review'), nullValue(Task)
         assertThat tasks.findByName('track-integration'), nullValue(Task)
+        assertThat tasks.findByName('refresh-remote-branches'), nullValue(Task)
 
-        task = tasks.getByName('refresh-remote-branches')
+        task = tasks.getByName('start2459')
         assertThat task.actions.size(), equalTo(1)
         assertThat task, dependsOn()
     }
@@ -98,7 +94,7 @@ class GitPluginTests {
     void applyTasks_tracking_integration() {
         helper.putCmdOutput 'git status', '# On branch test_branch\n'
         helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
-        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'source_branch'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/source_branch'
 
         gitPlugin.apply project
 
@@ -145,21 +141,21 @@ class GitPluginTests {
         assertThat task, dependsOn('update')
 
         task = tasks.getByName('track-work')
-        assertThat task, instanceOf(GitChangeTrackedBrachTask)
+        assertThat task, instanceOf(GitChangeTrackedBranchTask)
         assertThat task.branch, equalTo('test_branch')
         assertThat task.trackedBranch, equalTo('work/source_branch/test_branch')
         assertThat task.remoteMachine, equalTo('remote_machine')
         assertThat task, dependsOn()
 
         task = tasks.getByName('track-review')
-        assertThat task, instanceOf(GitChangeTrackedBrachTask)
+        assertThat task, instanceOf(GitChangeTrackedBranchTask)
         assertThat task.branch, equalTo('test_branch')
         assertThat task.trackedBranch, equalTo('review/source_branch/test_branch')
         assertThat task.remoteMachine, equalTo('remote_machine')
         assertThat task, dependsOn()
 
         task = tasks.getByName('track-integration')
-        assertThat task, instanceOf(GitChangeTrackedBrachTask)
+        assertThat task, instanceOf(GitChangeTrackedBranchTask)
         assertThat task.branch, equalTo('test_branch')
         assertThat task.trackedBranch, equalTo('source_branch')
         assertThat task.remoteMachine, equalTo('remote_machine')
@@ -171,33 +167,162 @@ class GitPluginTests {
     }
 
 
+    @Test
+    void runRefreshRemoteBranches() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/source_branch'
+
+        gitPlugin.apply project
+
+        executeTask('refresh-remote-branches')
+        assertThat helper.cmds, hasItem('git remote prune remote_machine')
+    }
+
+
+    @Test
+    void runTrackReview_with_remote() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/source_branch'
+
+        gitPlugin.apply project
+
+        executeTask('track-review')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/review/source_branch/test_branch')
+    }
+
+
+    @Test
+    void runTrackReview_with_remote_and_new_pattern() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
+
+        project.reviewBranchNameGenerator = {"test_reviewing/${project.integrationBranch}/something_here"}
+
+        gitPlugin.apply project
+
+        executeTask('track-review')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_reviewing/test_source_branch/something_here')
+    }
+
+
+    @Test
+    void runTrackWork_with_remote_and_new_pattern() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
+
+        project.workBranchNameGenerator = {"test_working/${project.integrationBranch}/something_here"}
+
+        gitPlugin.apply project
+
+        executeTask('track-work')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_working/test_source_branch/something_here')
+    }
+
+
+    @Test
+    void runStart1() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/source_branch'
+
+        gitPlugin.apply project
+
+        project.branchPrefix = 'TESTISSUE-'
+
+        executeTask('start3568')
+        assertThat helper.cmds, hasItem('git checkout -b TESTISSUE-3568 remote_machine/source_branch')
+    }
+
+
+    @Test
+    void runStart2() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+
+        gitPlugin.apply project
+
+        project.branchPrefix = 'TESTISSUE-'
+        project.integrationBranch = 'source_branch'
+
+        executeTask('start3568')
+        assertThat helper.cmds, hasItem('git checkout -b TESTISSUE-3568 remote_machine/source_branch')
+    }
+
+
+    @Test
+    void runStart3() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+
+        gitPlugin.apply project
+
+        project.branchPrefix = 'TESTISSUE-'
+
+        executeTask('start3568')
+        assertThat helper.cmds, hasItem('git checkout -b TESTISSUE-3568 remote_machine/master')
+    }
+
+
+    @Test
+    void runStart4() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', ''
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+        helper.putCmdOutput 'git remote', ''
+
+        gitPlugin.apply project
+
+        project.branchPrefix = 'TESTISSUE-'
+
+        executeTask('start3568')
+        assertThat helper.cmds, hasItem('git checkout -b TESTISSUE-3568 master')
+    }
+
+
+    List executeTask(String taskName) {
+        Task task = project.tasks.getByName(taskName)
+        executeTask(task)
+    }
+
+
+    static List executeTask(Task task) {
+        Set dependencies = task.taskDependencies.getDependencies(task)
+        dependencies.each {Task depTask -> executeTask(depTask)}
+        List actions = task.actions
+        actions.each {Action action -> action.execute(task) }
+    }
+
+
     public static Matcher<Task> dependsOn(final String... tasks) {
-        return dependsOn(equalTo(new HashSet<String>(Arrays.asList(tasks))));
+        return dependsOn(equalTo(new HashSet<String>(Arrays.asList(tasks))))
     }
 
 
     public static Matcher<Task> dependsOn(final Matcher<? extends Iterable<String>> matcher) {
         return new BaseMatcher<Task>() {
-            public boolean matches(Object o) {
-                Task task = (Task) o;
-                Set<String> names = new HashSet<String>();
-                Set<? extends Task> depTasks = task.getTaskDependencies().getDependencies(task);
-                for (Task depTask: depTasks) {
-                    names.add(depTask.getName());
-                }
-                boolean matches = matcher.matches(names);
+            public boolean matches(obj) {
+                Task task = Task.cast(obj)
+                Set<? extends Task> depTasks = task.taskDependencies.getDependencies(task)
+                Set<String> names = new HashSet<String>(depTasks.collect {Task depTask -> depTask.name})
+                boolean matches = matcher.matches(names)
                 if (!matches) {
-                    StringDescription description = new StringDescription();
-                    matcher.describeTo(description);
-                    System.out.println(String.format("expected %s, got %s.", description.toString(), names));
+                    StringDescription description = new StringDescription()
+                    matcher.describeTo(description)
+                    println(String.format("expected %s, got %s.", description.toString(), names))
                 }
-                return matches;
+                matches
             }
 
 
             public void describeTo(Description description) {
-                description.appendText("a Task that depends on ").appendDescriptionOf(matcher);
+                description.appendText("a Task that depends on ").appendDescriptionOf(matcher)
             }
-        };
+        }
     }
 }

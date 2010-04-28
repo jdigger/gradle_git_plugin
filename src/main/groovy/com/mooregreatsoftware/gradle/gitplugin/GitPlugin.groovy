@@ -15,8 +15,11 @@
  */
 package com.mooregreatsoftware.gradle.gitplugin
 
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Rule
+import org.gradle.api.Task
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -24,78 +27,135 @@ class GitPlugin implements Plugin<Project> {
     protected Logger logger = LoggerFactory.getLogger(GitPlugin)
     private GitState _gitState
     def String _userName
-    @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
+    final ExecutionHelper executionHelper = ExecutionHelper.instance
 
 
     void apply(Project project) {
         logger.debug 'Setting up GitPlugin'
 
-        String integrationBranch = determineIntegrationBranch()
-        String privateRemoteBranch = "work/${userName}/${gitState.currentBranch}"
+        GitConvention.apply(project, gitState)
 
-        if (gitState.trackedBranch) {
-            project.task('update', type: GitRebaseTask, description: "Pull remote changes from ${gitState.trackedBranch} to current branch.") {
-                rebaseAgainstServer = true
-                sourceBranch = gitState.trackedBranch
+        if (gitState.remoteName) {
+            if (gitState.trackedBranch) {
+                project.task('update', type: GitRebaseTask, description: "Pull remote changes from ${gitState.trackedBranch} to current branch.") {
+                    rebaseAgainstServer = true
+                    sourceBranch = gitState.trackedBranch
+                }
+            }
+
+            addPushTasks(project)
+            addTrackingTasks(project)
+
+            project.task('refresh-remote-branches', description: "Removes references to remote branches that no longer exist at \"${gitState.remoteName}.\"") << {
+                executionHelper.runCmd "git remote prune ${gitState.remoteName}"
             }
         }
 
+        addStartRule(project)
+    }
+
+
+    private def addPushTasks(Project project) {
+        addPushPrivate(project)
+        addPushWork(project)
+        addPushReview(project)
+        addPushIntegration(project)
+    }
+
+
+    private Task addPushIntegration(Project project) {
+        project.task('push-integration', type: GitPushTask, description: "Push local changes to ${project.integrationBranch}.", dependsOn: ['-push-integration', 'track-integration'])
+        project.task('-push-integration', type: GitPushTask, dependsOn: 'update') {
+            remoteMachine = gitState.remoteName
+            localBranch = gitState.currentBranch
+            remoteBranch = project.integrationBranch
+            force = false
+        }
+    }
+
+
+    private def addPushReview(Project project) {
+        project.task('push-review', type: GitPushTask, description: "Push local changes to ${project.reviewBranch}.", dependsOn: ['-push-review', 'track-review'])
+        project.task('-push-review', type: GitPushTask, dependsOn: 'update') {
+            remoteMachine = gitState.remoteName
+            localBranch = gitState.currentBranch
+            remoteBranch = project.reviewBranch
+            force = false
+        }
+    }
+
+
+    private def addPushWork(Project project) {
+        project.task('push-work', description: "Push local changes to ${project.workBranch}.", dependsOn: ['-push-work', 'track-work'])
+        project.task('-push-work', type: GitPushTask, dependsOn: 'update') {
+            remoteMachine = gitState.remoteName
+            localBranch = gitState.currentBranch
+            remoteBranch = project.workBranch
+            force = false
+        }
+    }
+
+
+    private def addPushPrivate(Project project) {
+        String privateRemoteBranch = "work/${userName}/${gitState.currentBranch}"
         project.task('push-private', type: GitPushTask, description: "Push local changes to ${privateRemoteBranch}.") {
             remoteMachine = gitState.remoteName
             localBranch = gitState.currentBranch
             remoteBranch = privateRemoteBranch
             force = true
         }
+    }
 
-        if (integrationBranch) {
-            String workBranch = "work/${integrationBranch}/${gitState.currentBranch}"
-            String reviewBranch = "review/${integrationBranch}/${gitState.currentBranch}"
 
-            project.task('push-work', description: "Push local changes to ${workBranch}.", dependsOn: ['-push-work', 'track-work'])
-            project.task('-push-work', type: GitPushTask, dependsOn: 'update') {
-                remoteMachine = gitState.remoteName
-                localBranch = gitState.currentBranch
-                remoteBranch = workBranch
-                force = false
-            }
+    private void addTrackingTasks(Project project) {
+        addTrackWork(project)
+        addTrackReview(project)
+        addTrackIntegration(project)
+    }
 
-            project.task('push-review', type: GitPushTask, description: "Push local changes to ${reviewBranch}.", dependsOn: ['-push-review', 'track-review'])
-            project.task('-push-review', type: GitPushTask, dependsOn: 'update') {
-                remoteMachine = gitState.remoteName
-                localBranch = gitState.currentBranch
-                remoteBranch = reviewBranch
-                force = false
-            }
 
-            project.task('push-integration', type: GitPushTask, description: "Push local changes to ${integrationBranch}.", dependsOn: ['-push-integration', 'track-integration'])
-            project.task('-push-integration', type: GitPushTask, dependsOn: 'update') {
-                remoteMachine = gitState.remoteName
-                localBranch = gitState.currentBranch
-                remoteBranch = integrationBranch
-                force = false
-            }
-
-            project.task('track-work', type: GitChangeTrackedBrachTask, description: "Change local ${gitState.currentBranch} branch to track ${gitState.remoteName}/${workBranch}.") {
-                branch = gitState.currentBranch
-                trackedBranch = workBranch
-                remoteMachine = gitState.remoteName
-            }
-
-            project.task('track-review', type: GitChangeTrackedBrachTask, description: "Change local ${gitState.currentBranch} branch to track ${gitState.remoteName}/${reviewBranch}.") {
-                branch = gitState.currentBranch
-                trackedBranch = reviewBranch
-                remoteMachine = gitState.remoteName
-            }
-
-            project.task('track-integration', type: GitChangeTrackedBrachTask, description: "Change local ${gitState.currentBranch} branch to track ${gitState.remoteName}/${integrationBranch}.") {
-                branch = gitState.currentBranch
-                trackedBranch = integrationBranch
-                remoteMachine = gitState.remoteName
-            }
+    private Task addTrackIntegration(Project project) {
+        return project.task('track-integration', type: GitChangeTrackedBranchTask, description: "Change local ${gitState.currentBranch} branch to track ${gitState.remoteName}/${project.integrationBranch}.") {
+            branch = gitState.currentBranch
+            trackedBranch = project.integrationBranch
+            remoteMachine = gitState.remoteName
         }
+    }
 
-        project.task('refresh-remote-branches', description: "Removes references to remote branches that no longer exist at \"${gitState.remoteName}.\"") << {
-            executionHelper.runCmd "git remote prune ${gitState.remoteName}"
+
+    private Task addTrackReview(Project project) {
+        return project.task('track-review', type: GitChangeTrackedBranchTask, description: "Change local ${gitState.currentBranch} branch to track ${gitState.remoteName}/${project.reviewBranch}.") {
+            branch = gitState.currentBranch
+            trackedBranch = project.reviewBranch
+            remoteMachine = gitState.remoteName
+        }
+    }
+
+
+    private Task addTrackWork(Project project) {
+        return project.task('track-work', type: GitChangeTrackedBranchTask, description: "Change local ${gitState.currentBranch} branch to track ${gitState.remoteName}/${project.workBranch}.") {
+            branch = gitState.currentBranch
+            trackedBranch = project.workBranch
+            remoteMachine = gitState.remoteName
+        }
+    }
+
+
+    private Rule addStartRule(Project project) {
+        project.tasks.addRule 'Pattern: start<ID>', {String taskName ->
+            if (taskName.startsWith("start")) {
+                String sourceBranch = ''
+                if (project.integrationBranch) {
+                    sourceBranch = (gitState.remoteName) ? gitState.remoteName + '/' + project.integrationBranch : project.integrationBranch
+                }
+                else {
+                    throw new GradleException('Do not know what to base the new branch off of.')
+                }
+                project.task(taskName, type: GitCheckoutTask) {
+                    trackedBranch = sourceBranch
+                    branch = branchPrefix + taskName[5..-1]
+                } as GitCheckoutTask
+            }
         }
     }
 
@@ -123,29 +183,6 @@ class GitPlugin implements Plugin<Project> {
 
     void setUserName(String un) {
         _userName = un
-    }
-
-
-    String determineIntegrationBranch() {
-        def tb = gitState.trackedBranch
-        def cb = gitState.currentBranch
-        def rn = gitState.remoteName
-
-        if (!tb) {
-            logger.warn("This branch does not track another branch.\nRun \"git config branch.${cb}.merge refs/heads/****\",\nwhere **** is the name of the integration branch.")
-            return null
-        }
-
-        def m
-        m = (tb =~ "^${rn}/([^/]+)\$")
-        if (m) return m[0][1]
-        m = (tb =~ "^${rn}/work/([^/]+)/${cb}\$")
-        if (m) return m[0][1]
-        m = (tb =~ "^${rn}/review/([^/]+)/${cb}\$")
-        if (m) return m[0][1]
-
-        logger.warn "Can not parse integration branch out of ${tb} because it does not follow the conventions."
-        return null
     }
 
 }

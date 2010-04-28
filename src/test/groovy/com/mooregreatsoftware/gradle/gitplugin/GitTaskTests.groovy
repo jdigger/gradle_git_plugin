@@ -155,4 +155,26 @@ class GitTaskTests {
         assertThat helper.cmds[2], equalTo('git rebase origin/master')
     }
 
+
+    @Test
+    void gitCheckout_no_tracking() {
+        GitCheckoutTask task = createTask(GitCheckoutTask) as GitCheckoutTask
+        task.branch = 'new_branch'
+        task.trackedBranch = ''
+        task.execute()
+        assertThat helper.cmds.size(), equalTo(1)
+        assertThat helper.cmds[0], equalTo('git checkout new_branch')
+    }
+
+
+    @Test
+    void gitCheckout_with_tracking() {
+        GitCheckoutTask task = createTask(GitCheckoutTask) as GitCheckoutTask
+        task.branch = 'new_branch'
+        task.trackedBranch = 'integration_branch'
+        task.execute()
+        assertThat helper.cmds.size(), equalTo(1)
+        assertThat helper.cmds[0], equalTo('git checkout -b new_branch integration_branch')
+    }
+
 }

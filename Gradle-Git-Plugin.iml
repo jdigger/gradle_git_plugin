@@ -19,7 +19,10 @@
           <root url="file://$MODULE_DIR$/ide/lib" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES />
+        <SOURCES>
+          <root url="file://$MODULE_DIR$/../gradle/subprojects/gradle-plugins/src/main/groovy" />
+          <root url="file://$MODULE_DIR$/../gradle/subprojects/gradle-core/src/main/groovy" />
+        </SOURCES>
         <jarDirectory url="file://$MODULE_DIR$/ide/lib" recursive="false" />
       </library>
     </orderEntry>

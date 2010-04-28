@@ -19,21 +19,19 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class GitState {
-    def statOut
     protected Logger logger = LoggerFactory.getLogger(GitState)
     @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
-
-
-    GitState() {
-        statOut = cmdOutput('git status')
-    }
+    private String _statOut = null
+    private String _trackedBranch = null
+    private String _remoteName = null
+    private String _currentBranch = null
 
 
     String getStatOut() {
-        if (!statOut) {
-            statOut = cmdOutput('git status')
+        if (!_statOut) {
+            _statOut = cmdOutput('git status')
         }
-        statOut
+        _statOut
     }
 
 
@@ -48,37 +46,47 @@ class GitState {
 
 
     String getCurrentBranch() {
-        isInvalidBranch() ? null : (statOut =~ /^# On branch (\S+)/)[0][1]
+        if (!_currentBranch) {
+            _currentBranch = isInvalidBranch() ? null : (statOut =~ /^# On branch (\S+)/)[0][1]
+        }
+        _currentBranch
     }
 
 
     String getTrackedBranch() {
-        def remote = getRemoteName()
-        if (remote) {
-            def branch = cmdOutput("git config --get branch.${currentBranch}.merge") - 'refs/heads/'
-            if (branch)
-                return "${remote}/${branch}"
+        if (_trackedBranch == null) {
+            def remote = getRemoteName()
+            String tb = ''
+            if (remote) {
+                def branch = cmdOutput("git config --get branch.${currentBranch}.merge") - 'refs/heads/'
+                if (branch)
+                    tb = "${remote}/${branch}"
+            }
+            _trackedBranch = tb
         }
-        return ''
+        _trackedBranch
     }
 
 
     String getRemoteName() {
-        String rn = cmdOutput("git config --get branch.${currentBranch}.remote")
-        if (rn) return rn
-        String remotes = cmdOutput('git remote')
-        String[] remotesArray = remotes.split()
-        if (remotesArray.length == 0) {
-            logger.warn 'There are no remotes set up for this repository'
-            return ''
+        if (_remoteName == null) {
+            String rn = cmdOutput("git config --get branch.${currentBranch}.remote")
+            if (!rn) {
+                String remotes = cmdOutput('git remote')
+                String[] remotesArray = remotes.split()
+                if (remotesArray.length == 1) {
+                    rn = remotesArray[0]
+                }
+                else if (remotesArray.length == 0) {
+                    logger.warn 'There are no remotes set up for this repository'
+                }
+                else {
+                    logger.warn "Can not determine which remote name to use ${Arrays.asList(remotesArray)}"
+                }
+            }
+            _remoteName = rn
         }
-        else if (remotesArray.length == 1) {
-            return remotesArray[0]
-        }
-        else {
-            logger.warn "Can not determine which remote name to use ${Arrays.asList(remotesArray)}"
-            return ''
-        }
+        _remoteName
     }
 
 }

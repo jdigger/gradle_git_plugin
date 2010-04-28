@@ -8,15 +8,20 @@ This is a plugin intended to work with other plugins to help establish a Git wor
 
 # Usage
 
-    usePlugin(com.mooregreatsoftware.gradle.gitplugin.GitPlugin)
+    apply plugin: com.mooregreatsoftware.gradle.gitplugin.GitPlugin
 
     buildscript {
+      repositories {
+        add(new org.apache.ivy.plugins.resolver.URLResolver()) {
+                name = 'gitplugin_repo'
+                addArtifactPattern "http://github.com/downloads/jdigger/gradle_git_plugin/[module]-[revision](-[classifier]).[ext]"
+                descriptor = 'optional'
+        }
+      }
       dependencies {
-        classpath 'com.mooregreatsoftware.gradle:gitplugin:1.0.0'
+        classpath 'com.mooregreatsoftware.gradle:gitplugin:1.1.0'
       }
     }
-
-The plugin jar is not currently published in a public repo, so you will have to add your own `repository` section.
 
 # Predefined Workflow
 
@@ -24,19 +29,27 @@ The plugin jar is not currently published in a public repo, so you will have to 
 
 Look at bug system/cards and start developing against ISSUE-1234
 
-    git checkout -b ISSUE-1234 origin/master
+    gradle start1234
 
-Work the issue.  Paranoid that my machine will eat the files, but want to make sure no-one else on my team will base any work off of my checkins.
+You can specify the prefix used in creating the branch name (e.g., 'ISSUE-') by setting the `branchPrefix` property in the project.  It will try to figure out the current integration branch (e.g., 'origin/master') based on the branch you are currently on, but if you want to explicitly specify it, set the `integrationBranch` property in the project.
+
+Work the issue.  I'm paranoid that my machine will eat the files, but I want to make sure no-one else on my team will base any work off of my checkins.
 
     gradle push-private
 
-Want to make sure that I have the latest from the integration branch and rebase my work against it.
+That will create the branch "work/jmoore/ISSUE-1234" on the server.
+
+When I want to make sure that I have the latest from the integration branch and rebase my work against it.
 
     gradle update
 
 I'm ready for others to review my changes before putting into into the "golden integration branch".
 
     gradle push-review
+
+That will create the branch "review/master/ISSUE-1234" on the server.  You can customize the behavior of how the review branch is created by setting the `reviewBranchNameGenerator` closure property on the project.  The default generator is:
+
+    {project -> "review/${project.integrationBranch}/${project.gitState.currentBranch}"}
 
 Rinse and repeat.
 
