@@ -18,7 +18,6 @@ package com.mooregreatsoftware.gradle.gitplugin
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-@Singleton
 class GitState {
     protected Logger logger = LoggerFactory.getLogger(GitState)
     @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance

@@ -37,7 +37,7 @@ Work the issue.  I'm paranoid that my machine will eat the files, but I want to 
 
     gradle push-private
 
-That will create the branch "work/jmoore/ISSUE-1234" on the server.
+That will create the branch "work/jmoore/ISSUE-1234" on the server. You can customize the behavior of how the work branch is created by setting the `baseWorkBranchName` property on the project.  The default name is `work`.  Or, if you don't want to use the convention, specify `workBranch` on the project to be whatever you want.
 
 When I want to make sure that I have the latest from the integration branch and rebase my work against it.
 
@@ -47,9 +47,7 @@ I'm ready for others to review my changes before putting into into the "golden i
 
     gradle push-review
 
-That will create the branch "review/master/ISSUE-1234" on the server.  You can customize the behavior of how the review branch is created by setting the `reviewBranchNameGenerator` closure property on the project.  The default generator is:
-
-    {project -> "review/${project.integrationBranch}/${project.gitState.currentBranch}"}
+That will create the branch "review/master/ISSUE-1234" on the server.  You can customize the behavior of how the review branch is created by setting the `baseReviewBranchName` property on the project.  The default name is `review`. Or, if you don't want to use the convention, specify `reviewBranch` on the project to be whatever you want.
 
 Rinse and repeat.
 

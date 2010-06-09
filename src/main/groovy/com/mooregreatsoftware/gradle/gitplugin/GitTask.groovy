@@ -21,12 +21,12 @@ import org.gradle.api.tasks.TaskAction
 
 abstract class GitTask extends ConventionTask {
     @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
-    GitState gitState
+    private static GitState _gitState
 
 
     GitState getGitState() {
-        if (!gitState) gitState = GitState.instance
-        gitState
+        if (!_gitState) _gitState = new GitState()
+        _gitState
     }
 
 }
@@ -49,6 +49,15 @@ class GitFetchTask extends AbstractGitTask {
         'git fetch'
     }
 
+}
+
+
+class GitRemotePruneTask extends AbstractGitTask {
+    String remoteMachine = 'origin'
+
+    String commandToExecute() {
+        "git remote prune ${remoteMachine}"
+    }
 }
 
 

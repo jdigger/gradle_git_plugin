@@ -15,6 +15,7 @@
  */
 package com.mooregreatsoftware.gradle.gitplugin
 
+import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -46,8 +47,8 @@ class GitPlugin implements Plugin<Project> {
             addPushTasks(project)
             addTrackingTasks(project)
 
-            project.task('refresh-remote-branches', description: "Removes references to remote branches that no longer exist at \"${gitState.remoteName}.\"") << {
-                executionHelper.runCmd "git remote prune ${gitState.remoteName}"
+            project.task('refresh-remote-branches', type: GitRemotePruneTask, description: "Removes references to remote branches that no longer exist at \"${gitState.remoteName}.\"") {
+                remoteMachine = gitState.remoteName
             }
         }
 
@@ -64,34 +65,37 @@ class GitPlugin implements Plugin<Project> {
 
 
     private Task addPushIntegration(Project project) {
-        project.task('push-integration', type: GitPushTask, description: "Push local changes to ${project.integrationBranch}.", dependsOn: ['-push-integration', 'track-integration'])
-        project.task('-push-integration', type: GitPushTask, dependsOn: 'update') {
+        project.task('push-integration', type: GitPushTask, description: "Push local changes to ${project.integrationBranch}.", dependsOn: 'update') {
             remoteMachine = gitState.remoteName
             localBranch = gitState.currentBranch
             remoteBranch = project.integrationBranch
             force = false
+        }.doLast {
+            executeTask(project, 'track-integration')
         }
     }
 
 
     private def addPushReview(Project project) {
-        project.task('push-review', type: GitPushTask, description: "Push local changes to ${project.reviewBranch}.", dependsOn: ['-push-review', 'track-review'])
-        project.task('-push-review', type: GitPushTask, dependsOn: 'update') {
+        project.task('push-review', type: GitPushTask, description: "Push local changes to ${project.reviewBranch}.", dependsOn: 'update') {
             remoteMachine = gitState.remoteName
             localBranch = gitState.currentBranch
             remoteBranch = project.reviewBranch
             force = false
+        }.doLast {
+            executeTask(project, 'track-review')
         }
     }
 
 
     private def addPushWork(Project project) {
-        project.task('push-work', description: "Push local changes to ${project.workBranch}.", dependsOn: ['-push-work', 'track-work'])
-        project.task('-push-work', type: GitPushTask, dependsOn: 'update') {
+        project.task('push-work', type: GitPushTask, description: "Push local changes to ${project.workBranch}.", dependsOn: 'update') {
             remoteMachine = gitState.remoteName
             localBranch = gitState.currentBranch
             remoteBranch = project.workBranch
             force = false
+        }.doLast {
+            executeTask(project, 'track-work')
         }
     }
 
@@ -162,7 +166,7 @@ class GitPlugin implements Plugin<Project> {
 
     GitState getGitState() {
         if (!_gitState) {
-            _gitState = GitState.instance
+            _gitState = new GitState()
         }
         _gitState
     }
@@ -185,4 +189,17 @@ class GitPlugin implements Plugin<Project> {
         _userName = un
     }
 
+
+    List executeTask(Project project, String taskName) {
+        Task task = project.tasks.getByName(taskName)
+        executeTask(task)
+    }
+
+
+    static List executeTask(Task task) {
+        Set dependencies = task.taskDependencies.getDependencies(task)
+        dependencies.each {Task depTask -> executeTask(depTask)}
+        List actions = task.actions
+        actions.each {Action action -> action.execute(task) }
+    }
 }

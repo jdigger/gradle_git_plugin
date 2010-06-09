@@ -23,8 +23,8 @@ class GitConvention {
     protected static final Logger logger = LoggerFactory.getLogger(GitConvention)
     private static final String DEFAULT_INTEGRATION_BRANCH = 'master'
     private static final String DEFAULT_BRANCH_PREFIX = 'ISSUE-'
-    private static final Closure DEFAULT_WORK_BRANCH_NAME_GENERATOR = {project -> "work/${project.integrationBranch}/${project.gitState.currentBranch}"}
-    private static final Closure DEFAULT_REVIEW_BRANCH_NAME_GENERATOR = {project -> "review/${project.integrationBranch}/${project.gitState.currentBranch}"}
+    private static final String DEFAULT_BASE_WORK_BRANCH_NAME = 'work'
+    private static final String DEFAULT_BASE_REVIEW_BRANCH_NAME = 'review'
 
     private GitState gitState
     private Project project
@@ -41,18 +41,19 @@ class GitConvention {
         if (!project.hasProperty('branchPrefix')) {
             project.branchPrefix = DEFAULT_BRANCH_PREFIX
         }
-        if (!project.hasProperty('workBranchNameGenerator')) {
-            project.workBranchNameGenerator = DEFAULT_WORK_BRANCH_NAME_GENERATOR
+
+        if (!project.hasProperty('baseWorkBranchName')) {
+            project.baseWorkBranchName = 'work'
         }
-        if (!project.hasProperty('reviewBranchNameGenerator')) {
-            project.reviewBranchNameGenerator = DEFAULT_REVIEW_BRANCH_NAME_GENERATOR
+        if (!project.hasProperty('baseReviewBranchName')) {
+            project.baseReviewBranchName = 'review'
         }
 
         if (!project.hasProperty('workBranch')) {
-            project.workBranch = project.workBranchNameGenerator.call(project)
+            project.workBranch = "${project.baseWorkBranchName}/${project.integrationBranch}/${project.gitState.currentBranch}"
         }
         if (!project.hasProperty('reviewBranch')) {
-            project.reviewBranch = project.reviewBranchNameGenerator.call(project)
+            project.reviewBranch = "${project.baseReviewBranchName}/${project.integrationBranch}/${project.gitState.currentBranch}"
         }
 
         project.tasks.withType(GitCheckoutTask).allTasks {GitCheckoutTask task ->
@@ -105,8 +106,9 @@ class GitConvention {
         String tb = gs.trackedBranch
         String rn = gs.remoteName
         String cb = gs.currentBranch
+        String pattern = "^${rn}/${project.baseWorkBranchName}/([^/]+)/${cb}\$"
 
-        def m = (tb =~ "^${rn}/work/([^/]+)/${cb}\$")
+        def m = (tb =~ pattern)
         (m) ? m[0][1] : null
     }
 
@@ -115,8 +117,9 @@ class GitConvention {
         String tb = gs.trackedBranch
         String rn = gs.remoteName
         String cb = gs.currentBranch
+        String pattern = "^${rn}/${project.baseReviewBranchName}/([^/]+)/${cb}\$"
 
-        def m = (tb =~ "^${rn}/review/([^/]+)/${cb}\$")
+        def m = (tb =~ pattern)
         (m) ? m[0][1] : null
     }
 

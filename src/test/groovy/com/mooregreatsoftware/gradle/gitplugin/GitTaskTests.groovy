@@ -130,29 +130,23 @@ class GitTaskTests {
 
     @Test
     void gitRebase_simple() {
-        helper.putCmdOutput 'git status', ' '
-
         GitRebaseTask task = createTask(GitRebaseTask) as GitRebaseTask
         task.sourceBranch = 'master'
         task.execute()
-        assertThat helper.cmds.size(), equalTo(2)
-        assertThat helper.cmds[0], equalTo('git status')
-        assertThat helper.cmds[1], equalTo('git rebase master')
+        assertThat helper.cmds.size(), equalTo(1)
+        assertThat helper.cmds[0], equalTo('git rebase master')
     }
 
 
     @Test
     void gitRebase_simple_server() {
-        helper.putCmdOutput 'git status', ' '
-
         GitRebaseTask task = createTask(GitRebaseTask) as GitRebaseTask
         task.sourceBranch = "master"
         task.rebaseAgainstServer = true
         task.execute()
-        assertThat helper.cmds.size(), equalTo(3)
-        assertThat helper.cmds[0], equalTo('git status')
-        assertThat helper.cmds[1], equalTo('git fetch')
-        assertThat helper.cmds[2], equalTo('git rebase origin/master')
+        assertThat helper.cmds.size(), equalTo(2)
+        assertThat helper.cmds[0], equalTo('git fetch')
+        assertThat helper.cmds[1], equalTo('git rebase origin/master')
     }
 
 

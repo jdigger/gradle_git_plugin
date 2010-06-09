@@ -75,7 +75,12 @@ class ExecutionHelper {
     }
 
 
-    String cmdOutput(String cmd, boolean showLog = true) {
+    String cmdOutput(String cmd) {
+        cmdOutput(cmd, true)
+    }
+
+
+    String cmdOutput(String cmd, boolean showLog) {
         if (showLog) logger.warn cmd
 
         if (debugMode) {

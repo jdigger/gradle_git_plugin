@@ -15,7 +15,6 @@
  */
 package com.mooregreatsoftware.gradle.gitplugin
 
-import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskContainer
@@ -116,7 +115,7 @@ class GitPluginTests {
         assertThat task.force, equalTo(true)
         assertThat task, dependsOn()
 
-        task = tasks.getByName('-push-work')
+        task = tasks.getByName('push-work')
         assertThat task, instanceOf(GitPushTask)
         assertThat task.remoteMachine, equalTo('remote_machine')
         assertThat task.localBranch, equalTo('test_branch')
@@ -124,7 +123,7 @@ class GitPluginTests {
         assertThat task.force, equalTo(false)
         assertThat task, dependsOn('update')
 
-        task = tasks.getByName('-push-review')
+        task = tasks.getByName('push-review')
         assertThat task, instanceOf(GitPushTask)
         assertThat task.remoteMachine, equalTo('remote_machine')
         assertThat task.localBranch, equalTo('test_branch')
@@ -132,7 +131,7 @@ class GitPluginTests {
         assertThat task.force, equalTo(false)
         assertThat task, dependsOn('update')
 
-        task = tasks.getByName('-push-integration')
+        task = tasks.getByName('push-integration')
         assertThat task, instanceOf(GitPushTask)
         assertThat task.remoteMachine, equalTo('remote_machine')
         assertThat task.localBranch, equalTo('test_branch')
@@ -194,17 +193,48 @@ class GitPluginTests {
 
 
     @Test
-    void runTrackReview_with_remote_and_new_pattern() {
+    void runTrackReview_with_remote_and_custom_review_basename() {
         helper.putCmdOutput 'git status', '# On branch test_branch\n'
         helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
         helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
 
-        project.reviewBranchNameGenerator = {"test_reviewing/${project.integrationBranch}/something_here"}
+        project.baseReviewBranchName = 'test_reviewing'
 
         gitPlugin.apply project
 
         executeTask('track-review')
-        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_reviewing/test_source_branch/something_here')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_reviewing/test_source_branch/test_branch')
+    }
+
+
+    @Test
+    void runTrackReview_with_specified_name() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
+
+        project.reviewBranch = 'my/custom/review/name'
+
+        gitPlugin.apply project
+
+        executeTask('track-review')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/my/custom/review/name')
+    }
+
+
+    @Test
+    void runPushReview_with_remote_and_new_custom_review_basename() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
+
+        project.baseReviewBranchName = 'test_reviewing'
+
+        gitPlugin.apply project
+
+        executeTask('push-review')
+        assertThat helper.cmds, hasItem('git push remote_machine test_branch:test_reviewing/test_source_branch/test_branch')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_reviewing/test_source_branch/test_branch')
     }
 
 
@@ -214,12 +244,90 @@ class GitPluginTests {
         helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
         helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
 
-        project.workBranchNameGenerator = {"test_working/${project.integrationBranch}/something_here"}
+        project.baseWorkBranchName = 'test_working'
 
         gitPlugin.apply project
 
         executeTask('track-work')
-        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_working/test_source_branch/something_here')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_working/test_source_branch/test_branch')
+    }
+
+
+    @Test
+    void runTrackWork_with_specified_name() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
+
+        project.workBranch = 'my/custom/name'
+
+        gitPlugin.apply project
+
+        executeTask('track-work')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/my/custom/name')
+    }
+
+
+    @Test
+    void runPushWork_with_remote_and_new_pattern() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_source_branch'
+
+        project.baseWorkBranchName = 'test_working'
+
+        gitPlugin.apply project
+
+        executeTask('push-work')
+        assertThat helper.cmds, hasItem('git push remote_machine test_branch:test_working/test_source_branch/test_branch')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_working/test_source_branch/test_branch')
+    }
+
+
+    @Test
+    void runTrackIntegration_with_remote_and_custom_review_basename() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_reviewing/test_source_branch/test_branch'
+
+        project.baseReviewBranchName = "test_reviewing"
+
+        gitPlugin.apply project
+
+        executeTask('track-integration')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_source_branch')
+    }
+
+
+    @Test
+    void runPushIntegration_with_remote_and_custom_review_basename() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_reviewing/test_source_branch/test_branch'
+
+        project.baseReviewBranchName = "test_reviewing"
+
+        gitPlugin.apply project
+
+        executeTask('push-integration')
+        assertThat helper.cmds, hasItem('git push remote_machine test_branch:test_source_branch')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_source_branch')
+    }
+
+
+    @Test
+    void runPushIntegration_with_remote_and_custom_work_basename() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/test_working/test_source_branch/test_branch'
+
+        project.baseWorkBranchName = "test_working"
+
+        gitPlugin.apply project
+
+        executeTask('push-integration')
+        assertThat helper.cmds, hasItem('git push remote_machine test_branch:test_source_branch')
+        assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_source_branch')
     }
 
 
@@ -286,16 +394,7 @@ class GitPluginTests {
 
 
     List executeTask(String taskName) {
-        Task task = project.tasks.getByName(taskName)
-        executeTask(task)
-    }
-
-
-    static List executeTask(Task task) {
-        Set dependencies = task.taskDependencies.getDependencies(task)
-        dependencies.each {Task depTask -> executeTask(depTask)}
-        List actions = task.actions
-        actions.each {Action action -> action.execute(task) }
+        gitPlugin.executeTask(project, taskName)
     }
 
 
