@@ -142,7 +142,7 @@ class GitPlugin implements Plugin<Project> {
 
 
     private Rule addStartRule(Project project) {
-        project.tasks.addRule 'Pattern: start<ID>', {String taskName ->
+        project.tasks.addRule 'Pattern: start<ID> to create a branch based on the ticket ID', {String taskName ->
             if (taskName.startsWith("start")) {
                 String sourceBranch = ''
                 if (project.integrationBranch) {

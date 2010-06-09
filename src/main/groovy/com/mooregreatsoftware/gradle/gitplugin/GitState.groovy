@@ -58,7 +58,7 @@ class GitState {
             def remote = getRemoteName()
             String tb = ''
             if (remote) {
-                def branch = cmdOutput("git config --get branch.${currentBranch}.merge") - 'refs/heads/'
+                def branch = cmdOutput("git config --get branch.${currentBranch}.merge") - 'refs/heads/' - '\n'
                 if (branch)
                     tb = "${remote}/${branch}"
             }
@@ -70,12 +70,12 @@ class GitState {
 
     String getRemoteName() {
         if (_remoteName == null) {
-            String rn = cmdOutput("git config --get branch.${currentBranch}.remote")
+            String rn = cmdOutput("git config --get branch.${currentBranch}.remote") - '\n'
             if (!rn) {
                 String remotes = cmdOutput('git remote')
                 String[] remotesArray = remotes.split()
                 if (remotesArray.length == 1) {
-                    rn = remotesArray[0]
+                    rn = remotesArray[0] - '\n'
                 }
                 else if (remotesArray.length == 0) {
                     logger.warn 'There are no remotes set up for this repository'

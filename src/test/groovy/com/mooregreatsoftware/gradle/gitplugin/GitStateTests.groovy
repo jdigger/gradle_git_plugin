@@ -89,7 +89,7 @@ class GitStateTests {
     @Test
     void getTrackedBranch_simple() {
         helper.putCmdOutput 'git status', '# On branch mybranch'
-        helper.putCmdOutput 'git config --get branch.mybranch.remote', 'origin'
+        helper.putCmdOutput 'git config --get branch.mybranch.remote', 'origin\n'
         helper.putCmdOutput 'git config --get branch.mybranch.merge', 'refs/heads/mybranch'
         assertThat new GitState().getTrackedBranch(), equalTo('origin/mybranch')
     }
@@ -98,7 +98,7 @@ class GitStateTests {
     @Test
     void getTrackedBranch_missing_remote() {
         helper.putCmdOutput 'git status', '# On branch mybranch'
-        helper.putCmdOutput 'git config --get branch.mybranch.remote', ''
+        helper.putCmdOutput 'git config --get branch.mybranch.remote', '\n'
         helper.putCmdOutput 'git config --get branch.mybranch.merge', ''
         helper.putCmdOutput 'git remote', 'a_server\n'
         assertThat new GitState().getTrackedBranch(), equalTo('')
