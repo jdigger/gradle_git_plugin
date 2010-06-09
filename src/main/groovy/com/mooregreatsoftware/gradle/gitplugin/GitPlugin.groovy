@@ -162,7 +162,7 @@ class GitPlugin implements Plugin<Project> {
 
     GitState getGitState() {
         if (!_gitState) {
-            _gitState = new GitState()
+            _gitState = GitState.instance
         }
         _gitState
     }

@@ -18,6 +18,7 @@ package com.mooregreatsoftware.gradle.gitplugin
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
+@Singleton
 class GitState {
     protected Logger logger = LoggerFactory.getLogger(GitState)
     @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
@@ -29,7 +30,7 @@ class GitState {
 
     String getStatOut() {
         if (!_statOut) {
-            _statOut = cmdOutput('git status')
+            _statOut = cmdOutput('git status', false)
         }
         _statOut
     }
@@ -58,7 +59,7 @@ class GitState {
             def remote = getRemoteName()
             String tb = ''
             if (remote) {
-                def branch = cmdOutput("git config --get branch.${currentBranch}.merge") - 'refs/heads/' - '\n'
+                def branch = cmdOutput("git config --get branch.${currentBranch}.merge", false) - 'refs/heads/' - '\n'
                 if (branch)
                     tb = "${remote}/${branch}"
             }
@@ -70,7 +71,7 @@ class GitState {
 
     String getRemoteName() {
         if (_remoteName == null) {
-            String rn = cmdOutput("git config --get branch.${currentBranch}.remote") - '\n'
+            String rn = cmdOutput("git config --get branch.${currentBranch}.remote", false) - '\n'
             if (!rn) {
                 String remotes = cmdOutput('git remote')
                 String[] remotesArray = remotes.split()

@@ -25,7 +25,7 @@ abstract class GitTask extends ConventionTask {
 
 
     GitState getGitState() {
-        if (!gitState) gitState = new GitState()
+        if (!gitState) gitState = GitState.instance
         gitState
     }
 
