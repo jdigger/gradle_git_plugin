@@ -15,6 +15,7 @@
  */
 package com.mooregreatsoftware.gradle.gitplugin
 
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskContainer
@@ -27,6 +28,7 @@ import org.junit.Before
 import org.junit.Test
 import static org.hamcrest.Matchers.*
 import static org.junit.Assert.assertThat
+import static org.junit.Assert.fail
 
 class GitPluginTests {
     final ExecutionHelper helper = ExecutionHelper.instance
@@ -49,6 +51,7 @@ class GitPluginTests {
     @Before
     void createPlugin() {
         gitPlugin = new GitPlugin()
+        GitPlugin.gitState = null
         gitPlugin.userName = 'tuser'
     }
 
@@ -328,6 +331,122 @@ class GitPluginTests {
         executeTask('push-integration')
         assertThat helper.cmds, hasItem('git push remote_machine test_branch:test_source_branch')
         assertThat helper.cmds, hasItem('git config branch.test_branch.merge refs/heads/test_source_branch')
+    }
+
+
+    @Test
+    void runRemovePrivate_simple() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', ''
+        helper.putCmdOutput 'git remote', 'origin'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+        helper.putCmdOutput 'git branch -r', "  origin/master\n  origin/work/tuser/test_branch\n"
+
+        gitPlugin.apply project
+
+        executeTask('remove-private')
+        assertThat helper.cmds, hasItem('git push origin :work/tuser/test_branch')
+    }
+
+
+    @Test
+    void runRemovePrivate_no_existing_branch() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+        helper.putCmdOutput 'git branch -r', "  origin/master\n"
+
+        gitPlugin.apply project
+
+        try {
+            executeTask('remove-private')
+            fail "Should have thrown a GradleException because branch does not exist"
+        }
+        catch (GradleException exp) {
+            // expected
+        }
+    }
+
+
+    @Test
+    void runRemoveWork_simple() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'origin'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'work/int_branch/test_branch'
+        helper.putCmdOutput 'git branch -r', "  origin/master\n  origin/work/int_branch/test_branch\n"
+
+        gitPlugin.apply project
+
+        executeTask('remove-work')
+        assertThat helper.cmds, hasItem('git push origin :work/int_branch/test_branch')
+    }
+
+
+    @Test
+    void runRemoveWork_no_existing_branch() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+        helper.putCmdOutput 'git branch -r', "  origin/master\n"
+
+        gitPlugin.apply project
+
+        try {
+            executeTask('remove-work')
+            fail "Should have thrown a GradleException because branch does not exist"
+        }
+        catch (GradleException exp) {
+            // expected
+        }
+    }
+
+
+    @Test
+    void runRemoveReview_simple() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'origin'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'work/int_branch/test_branch'
+        helper.putCmdOutput 'git branch -r', "  origin/master\n  origin/review/int_branch/test_branch\n"
+
+        gitPlugin.apply project
+
+        executeTask('remove-review')
+        assertThat helper.cmds, hasItem('git push origin :review/int_branch/test_branch')
+    }
+
+
+    @Test
+    void runRemoveReview_customer_review_name() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'origin'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'work/int_branch/test_branch'
+        helper.putCmdOutput 'git branch -r', "  origin/master\n  origin/test_reviewing/int_branch/test_branch\n"
+
+        project.baseReviewBranchName = "test_reviewing"
+
+        gitPlugin.apply project
+
+        executeTask('remove-review')
+        assertThat helper.cmds, hasItem('git push origin :test_reviewing/int_branch/test_branch')
+    }
+
+
+    @Test
+    void runRemoveReview_no_existing_branch() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+        helper.putCmdOutput 'git branch -r', "  origin/master\n"
+
+        gitPlugin.apply project
+
+        try {
+            executeTask('remove-review')
+            fail "Should have thrown a GradleException because branch does not exist"
+        }
+        catch (GradleException exp) {
+            // expected
+        }
     }
 
 

@@ -89,6 +89,15 @@ Change the local branch to track the code-review branch.
 ### track-integration
 Change the local branch to track the integration branch.
 
+### remove-private
+Remove the remote private development branch for the current issue.
+
+### remove-work
+Remove the remote shared development branch for the current issue.
+
+### remove-review
+Remove the remote code-review branch for the current issue.
+
 ### refresh-remote-branches
 Removes references to remote branches that no longer exist.
 

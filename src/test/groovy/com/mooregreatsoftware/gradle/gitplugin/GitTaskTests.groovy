@@ -76,10 +76,15 @@ class GitTaskTests {
 
     @Test
     void gitRemoveBranch_remote() {
+        helper.putCmdOutput 'git branch -r', '  origin/master\n  origin/work\n'
         GitRemoveBranchTask task = createTask(GitRemoveBranchTask) as GitRemoveBranchTask
         task.remote = true
         task.branch = 'master'
-        assertThat task.commandToExecute(), equalTo('git push origin :master')
+        task.execute()
+        assertThat helper.cmds.size(), equalTo(3)
+        assertThat helper.cmds[0], equalTo('git fetch')
+        assertThat helper.cmds[1], equalTo('git branch -r')
+        assertThat helper.cmds[2], equalTo('git push origin :master')
     }
 
 
@@ -88,7 +93,9 @@ class GitTaskTests {
         GitRemoveBranchTask task = createTask(GitRemoveBranchTask) as GitRemoveBranchTask
         task.force = true
         task.branch = 'master'
-        assertThat task.commandToExecute(), equalTo('git branch -D master')
+        task.execute()
+        assertThat helper.cmds.size(), equalTo(1)
+        assertThat helper.cmds[0], equalTo('git branch -D master')
     }
 
 
@@ -97,7 +104,9 @@ class GitTaskTests {
         GitRemoveBranchTask task = createTask(GitRemoveBranchTask) as GitRemoveBranchTask
         task.force = false
         task.branch = 'master'
-        assertThat task.commandToExecute(), equalTo('git branch -d master')
+        task.execute()
+        assertThat helper.cmds.size(), equalTo(1)
+        assertThat helper.cmds[0], equalTo('git branch -d master')
     }
 
 
@@ -105,11 +114,11 @@ class GitTaskTests {
     void gitRemoveBranch_missing_branch() {
         GitRemoveBranchTask task = createTask(GitRemoveBranchTask) as GitRemoveBranchTask
         try {
-            task.commandToExecute()
+            task.execute()
             fail "Should have thrown assertion error"
         }
         catch (GradleException exp) {
-            assertThat exp.getMessage(), equalTo('Need a branch')
+            assertThat exp.cause.getMessage(), equalTo('Need a branch')
         }
     }
 

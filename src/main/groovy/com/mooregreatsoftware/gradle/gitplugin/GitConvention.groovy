@@ -50,10 +50,10 @@ class GitConvention {
         }
 
         if (!project.hasProperty('workBranch')) {
-            project.workBranch = "${project.baseWorkBranchName}/${project.integrationBranch}/${project.gitState.currentBranch}"
+            project.workBranch = "${project.baseWorkBranchName}/${conv.integrationBranch}/${project.gitState.currentBranch}"
         }
         if (!project.hasProperty('reviewBranch')) {
-            project.reviewBranch = "${project.baseReviewBranchName}/${project.integrationBranch}/${project.gitState.currentBranch}"
+            project.reviewBranch = "${project.baseReviewBranchName}/${conv.integrationBranch}/${project.gitState.currentBranch}"
         }
 
         project.tasks.withType(GitCheckoutTask).allTasks {GitCheckoutTask task ->

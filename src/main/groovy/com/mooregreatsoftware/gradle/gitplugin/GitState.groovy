@@ -19,8 +19,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class GitState {
-    protected Logger logger = LoggerFactory.getLogger(GitState)
-    @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
+    protected static final Logger logger = LoggerFactory.getLogger(GitState)
+    @Delegate final static ExecutionHelper executionHelper = ExecutionHelper.instance
     private String _statOut = null
     private String _trackedBranch = null
     private String _remoteName = null
@@ -84,9 +84,24 @@ class GitState {
                     logger.warn "Can not determine which remote name to use ${Arrays.asList(remotesArray)}"
                 }
             }
-            _remoteName = rn
+            _remoteName = rn.trim()
         }
         _remoteName
+    }
+
+
+    static List<String> getRemoteBranches() {
+        List<String> branches
+        String branchNamesStr = executionHelper.cmdOutput("git branch -r", false) - '\n'
+        String[] branchNames = branchNamesStr.split()
+        if (branchNames.length == 0) {
+            logger.warn 'There are no remote branches for this repository'
+            branches = []
+        }
+        else {
+            branches = branchNames.collect {(it - '\n').trim()}
+        }
+        branches
     }
 
 }

@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory
 
 class GitPlugin implements Plugin<Project> {
     protected Logger logger = LoggerFactory.getLogger(GitPlugin)
-    private GitState _gitState
+    protected static GitState _gitState
     def String _userName
     final ExecutionHelper executionHelper = ExecutionHelper.instance
 
@@ -44,15 +44,52 @@ class GitPlugin implements Plugin<Project> {
                 }
             }
 
-            addPushTasks(project)
-            addTrackingTasks(project)
-
             project.task('refresh-remote-branches', type: GitRemotePruneTask, description: "Removes references to remote branches that no longer exist at \"${gitState.remoteName}.\"") {
                 remoteMachine = gitState.remoteName
             }
+
+            addRemovalTasks(project)
+
+            addPushTasks(project)
+            addTrackingTasks(project)
         }
 
         addStartRule(project)
+    }
+
+
+    private def addRemovalTasks(Project project) {
+        addRemovePrivate(project)
+        addRemoveWork(project)
+        addRemoveReview(project)
+    }
+
+
+    private Task addRemovePrivate(Project project) {
+        String privateRemoteBranch = "work/${userName}/${gitState.currentBranch}"
+        project.task('remove-private', type: GitRemoveBranchTask, description: "Remove remote ${privateRemoteBranch}") {
+            remoteMachine = gitState.remoteName
+            branch = privateRemoteBranch
+            remote = true
+        }
+    }
+
+
+    private Task addRemoveWork(Project project) {
+        project.task('remove-work', type: GitRemoveBranchTask, description: "Remove remote ${project.workBranch}") {
+            remoteMachine = gitState.remoteName
+            branch = project.workBranch
+            remote = true
+        }
+    }
+
+
+    private Task addRemoveReview(Project project) {
+        project.task('remove-review', type: GitRemoveBranchTask, description: "Remove remote ${project.reviewBranch}") {
+            remoteMachine = gitState.remoteName
+            branch = project.reviewBranch
+            remote = true
+        }
     }
 
 
@@ -164,7 +201,7 @@ class GitPlugin implements Plugin<Project> {
     }
 
 
-    GitState getGitState() {
+    static synchronized GitState getGitState() {
         if (!_gitState) {
             _gitState = new GitState()
         }
@@ -172,7 +209,7 @@ class GitPlugin implements Plugin<Project> {
     }
 
 
-    void setGitState(GitState state) {
+    static void setGitState(GitState state) {
         _gitState = state
     }
 

@@ -21,11 +21,13 @@ import org.gradle.api.tasks.TaskAction
 
 abstract class GitTask extends ConventionTask {
     @Delegate final ExecutionHelper executionHelper = ExecutionHelper.instance
-    private static GitState _gitState
+    private GitState _gitState
 
 
     GitState getGitState() {
-        if (!_gitState) _gitState = new GitState()
+        if (!_gitState) {
+            _gitState = GitPlugin.getGitState()
+        }
         _gitState
     }
 
@@ -54,6 +56,7 @@ class GitFetchTask extends AbstractGitTask {
 
 class GitRemotePruneTask extends AbstractGitTask {
     String remoteMachine = 'origin'
+
 
     String commandToExecute() {
         "git remote prune ${remoteMachine}"
@@ -102,20 +105,29 @@ class GitPushTask extends AbstractGitTask {
 }
 
 
-class GitRemoveBranchTask extends AbstractGitTask {
+class GitRemoveBranchTask extends GitTask {
     String remoteMachine = 'origin'
     String branch
     boolean remote = false
     boolean force = false
 
 
-    String commandToExecute() {
-        if (!branch) throw new GradleException('Need a branch')
-        if (remote) {
-            "git push ${remoteMachine} :${branch}"
-        }
-        else {
-            "git branch -${force ? 'D' : 'd'} ${branch}"
+    GitRemoveBranchTask() {
+        doFirst {
+            if (!branch) throw new GradleException('Need a branch')
+
+            if (remote) {
+                executionHelper.runCmd "git fetch"
+                List<String> branches = GitState.getRemoteBranches()
+                String remoteBranchName = "${remoteMachine}/${branch}"
+                if (!branches.contains(remoteBranchName)) {
+                    throw new GradleException("${remoteBranchName} is not in list of remote branches: ${branches}")
+                }
+                executionHelper.runCmd "git push ${remoteMachine} :${branch}"
+            }
+            else {
+                executionHelper.runCmd "git branch -${force ? 'D' : 'd'} ${branch}"
+            }
         }
     }
 
