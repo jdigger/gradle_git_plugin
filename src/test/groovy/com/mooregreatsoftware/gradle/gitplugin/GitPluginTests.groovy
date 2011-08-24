@@ -512,6 +512,37 @@ class GitPluginTests {
     }
 
 
+    @Test
+    void runReview1() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', 'refs/heads/source_branch'
+
+        gitPlugin.apply project
+
+        project.branchPrefix = 'TESTISSUE-'
+
+        executeTask('review3568')
+        assertThat helper.cmds, hasItem('git checkout -b TESTISSUE-3568 remote_machine/review/source_branch/TESTISSUE-3568')
+    }
+
+
+    @Test
+    void runReview2() {
+        helper.putCmdOutput 'git status', '# On branch test_branch\n'
+        helper.putCmdOutput 'git config --get branch.test_branch.remote', 'remote_machine'
+        helper.putCmdOutput 'git config --get branch.test_branch.merge', ''
+
+        gitPlugin.apply project
+
+        project.branchPrefix = 'TESTISSUE-'
+
+        executeTask('review3568')
+        assertThat helper.cmds, hasItem('git checkout -b TESTISSUE-3568 remote_machine/review/master/TESTISSUE-3568')
+    }
+
+
+
     List executeTask(String taskName) {
         gitPlugin.executeTask(project, taskName)
     }
