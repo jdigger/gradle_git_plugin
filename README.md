@@ -56,6 +56,10 @@ Rinse and repeat.
 
 Checkout another developer's code.
 
+    git review3456
+
+equivalent to
+
     git checkout -b ISSUE-3456 origin/review/master/ISSUE-3456
 
 Everything looks great.

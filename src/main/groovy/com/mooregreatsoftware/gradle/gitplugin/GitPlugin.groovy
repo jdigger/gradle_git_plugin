@@ -55,6 +55,7 @@ class GitPlugin implements Plugin<Project> {
         }
 
         addStartRule(project)
+        addReviewRule(project)
     }
 
 
@@ -185,7 +186,7 @@ class GitPlugin implements Plugin<Project> {
     private Rule addStartRule(Project project) {
         project.tasks.addRule 'Pattern: start<ID> to create a branch based on the ticket ID', {String taskName ->
             if (taskName.startsWith("start")) {
-                String sourceBranch = ''
+                String sourceBranch = gitState.remoteName + '/review/'
                 if (project.integrationBranch) {
                     sourceBranch = (gitState.remoteName) ? gitState.remoteName + '/' + project.integrationBranch : project.integrationBranch
                 }
@@ -195,6 +196,19 @@ class GitPlugin implements Plugin<Project> {
                 project.task(taskName, type: GitCheckoutTask) {
                     trackedBranch = sourceBranch
                     branch = branchPrefix + taskName[5..-1]
+                } as GitCheckoutTask
+            }
+        }
+    }
+
+
+    private Rule addReviewRule(Project project) {
+        project.tasks.addRule 'Pattern: review<ID> to create a local branch to track remote ${project.reviewBranch}', {String taskName ->
+            if (taskName.startsWith("review")) {
+                project.task(taskName, type: GitCheckoutTask) {
+                    def reviewBranchName = branchPrefix + taskName[6..-1]
+                    trackedBranch = "${gitState.remoteName}/${project.baseReviewBranchName}/${project.integrationBranch}/${reviewBranchName}"
+                    branch = reviewBranchName
                 } as GitCheckoutTask
             }
         }
